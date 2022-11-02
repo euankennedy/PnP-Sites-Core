@@ -19,7 +19,7 @@ namespace OfficeDevPnP.Core {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "15.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class CoreResources {
@@ -2497,7 +2497,7 @@ namespace OfficeDevPnP.Core {
         /// * @see {@link http://usejsdoc.org/|JSDoc}
         /// */
         ///
-        /// /*
+        ////*
         /// * PnPResponsiveApp
         /// * @namespace
         /// */
@@ -2507,11 +2507,13 @@ namespace OfficeDevPnP.Core {
         ///    window.PnPResponsiveApp = window.PnPResponsiveApp || {};
         ///}
         ///
-        /// /**
+        ////**
         /// * PnP Responsive
         /// * @class
         /// */
-        /// PnPResponsiveApp.Main = (function ()  [rest of string was truncated]&quot;;.
+        ///PnPResponsiveApp.Main = (function () {
+        ///    /**
+        ///     * Tog [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string SP_Responsive_UI {
             get {
@@ -2536,7 +2538,7 @@ namespace OfficeDevPnP.Core {
         ///    min-width: auto;
         ///}
         ///
-        /// /* Make sure dialog windows don&apos;t break */
+        ////* Make sure dialog windows don&apos;t break */
         ///.ms-dialog #contentRow {
         ///    margin-left: 0;
         ///}
@@ -2547,7 +2549,10 @@ namespace OfficeDevPnP.Core {
         ///
         ///.ms-dialog #s4-bodyContainer {
         ///    min-width: 0;
-        ///   [rest of string was truncated]&quot;;.
+        ///    font-size: 1em;
+        ///}
+        ///
+        ////* Tab [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string SP_Responsive_UI_CSS {
             get {

@@ -13,6 +13,7 @@ using System.Windows.Forms;
 #endif
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.SharePoint.Client;
+using Microsoft.ProjectServer.Client;
 using OfficeDevPnP.Core.IdentityModel.TokenProviders.ADFS;
 using OfficeDevPnP.Core.Diagnostics;
 using OfficeDevPnP.Core.Utilities;
@@ -391,10 +392,92 @@ namespace OfficeDevPnP.Core
 
             return null;
         }
-#endif
-#endregion
 
-#region Authenticating against SharePoint on-premises using credentials
+        /// <summary>
+        /// Returns a SharePoint on-premises / SharePoint Online ClientContext object. Requires claims based authentication with FedAuth cookie.
+        /// </summary>
+        /// <param name="siteUrl">Site for which the ClientContext object will be instantiated</param>
+        /// <param name="icon">Optional icon to use for the popup form</param>
+        /// <param name="scriptErrorsSuppressed">Optional parameter to set WebBrowser.ScriptErrorsSuppressed value in the popup form</param>
+        /// <returns>ClientContext to be used by CSOM code</returns>
+        public ClientContext GetWebLoginProjectContext(string siteUrl, System.Drawing.Icon icon = null, bool scriptErrorsSuppressed = true)
+        {
+            var authCookiesContainer = new CookieContainer();
+            var siteUri = new Uri(siteUrl);
+
+            var thread = new Thread(() =>
+            {
+                var form = new System.Windows.Forms.Form();
+                if (icon != null)
+                {
+                    form.Icon = icon;
+                }
+                var browser = new System.Windows.Forms.WebBrowser
+                {
+                    ScriptErrorsSuppressed = scriptErrorsSuppressed,
+                    Dock = DockStyle.Fill
+                };
+
+                form.SuspendLayout();
+                form.Width = 900;
+                form.Height = 500;
+                form.Text = $"Log in to {siteUrl}";
+                form.Controls.Add(browser);
+                form.ResumeLayout(false);
+
+                browser.Navigate(siteUri);
+
+                browser.Navigated += (sender, args) =>
+                {
+                    if (siteUri.Host.Equals(args.Url.Host))
+                    {
+                        var cookieString = CookieReader.GetCookie(siteUrl).Replace("; ", ",").Replace(";", ",");
+
+                        // Get FedAuth and rtFa cookies issued by ADFS when accessing claims aware applications.
+                        // - or get the EdgeAccessCookie issued by the Web Application Proxy (WAP) when accessing non-claims aware applications (Kerberos).
+                        IEnumerable<string> authCookies = null;
+                        if (Regex.IsMatch(cookieString, "FedAuth", RegexOptions.IgnoreCase))
+                        {
+                            authCookies = cookieString.Split(',').Where(c => c.StartsWith("FedAuth", StringComparison.InvariantCultureIgnoreCase) || c.StartsWith("rtFa", StringComparison.InvariantCultureIgnoreCase));
+                        }
+                        else if (Regex.IsMatch(cookieString, "EdgeAccessCookie", RegexOptions.IgnoreCase))
+                        {
+                            authCookies = cookieString.Split(',').Where(c => c.StartsWith("EdgeAccessCookie", StringComparison.InvariantCultureIgnoreCase));
+                        }
+                        if (authCookies != null)
+                        {
+                            authCookiesContainer.SetCookies(siteUri, string.Join(",", authCookies));
+                            form.Close();
+                        }
+                    }
+                };
+
+                form.Focus();
+                form.ShowDialog();
+                browser.Dispose();
+            });
+
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Start();
+            thread.Join();
+
+            if (authCookiesContainer.Count > 0)
+            {
+                var ctx = new ProjectContext(siteUrl);
+#if !ONPREMISES || SP2016 || SP2019
+                ctx.DisableReturnValueCache = true;
+#endif
+                ctx.ExecutingWebRequest += (sender, e) => e.WebRequestExecutor.WebRequest.CookieContainer = authCookiesContainer;
+                return ctx;
+            }
+
+            return null;
+        }
+
+#endif
+        #endregion
+
+        #region Authenticating against SharePoint on-premises using credentials
         /// <summary>
         /// Returns a SharePoint on-premises / SharePoint Online Dedicated ClientContext object
         /// </summary>
@@ -613,7 +696,7 @@ namespace OfficeDevPnP.Core
                     if (azureADCredentialsToken == null)
                     {
 
-                        String accessToken = Task.Run(() => AcquireTokenAsync(resourceUri, userPrincipalName, userPassword)).GetAwaiter().GetResult();
+                        String accessToken = System.Threading.Tasks.Task.Run(() => AcquireTokenAsync(resourceUri, userPrincipalName, userPassword)).GetAwaiter().GetResult();
                         ThreadPool.QueueUserWorkItem(obj =>
                         {
                             try
@@ -886,7 +969,7 @@ namespace OfficeDevPnP.Core
 
             clientContext.ExecutingWebRequest += (sender, args) =>
             {
-                var ar = Task.Run(() => authContext
+                var ar = System.Threading.Tasks.Task.Run(() => authContext
                     .AcquireTokenAsync(host.Scheme + "://" + host.Host + "/", clientAssertionCertificate))
                     .GetAwaiter().GetResult();
                 args.WebRequestExecutor.RequestHeaders["Authorization"] = "Bearer " + ar.AccessToken;
